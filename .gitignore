@@ -1,0 +1,8 @@
+/target
+/data/blocks/
+/.vscode/*
+!.vscode/launch.json
+/.DS_Store
+*.log
+*.db
+Cargo.lock

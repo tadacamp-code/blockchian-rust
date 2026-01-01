@@ -1,0 +1,29 @@
+{
+  "version": "0.2.0",
+  "configurations": [
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug main",
+      "cargo": {
+        "args": ["build"]
+      },
+      "program": "${workspaceFolder}/target/debug/blockchain-rust",
+      "args": [],
+      "cwd": "${workspaceFolder}",
+      "sourceLanguages": ["rust"]
+    },
+    {
+      "type": "lldb",
+      "request": "launch",
+      "name": "Debug tests",
+      "cargo": {
+        "args": ["test", "--no-run", "--bin", "blockchain-rust"]
+      },
+      "program": "${cargo:program}",
+      "args": ["test_blockchain", "--nocapture"],
+      "cwd": "${workspaceFolder}",
+      "sourceLanguages": ["rust"]
+    }
+  ]
+}
