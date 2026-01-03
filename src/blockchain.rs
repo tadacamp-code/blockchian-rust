@@ -3,11 +3,12 @@ use core::str;
 use std::collections::HashMap;
 
 use crate::{block::*, transaction::Transaction};
+use crate::transaction::TXOutput;
 use crate::errors::Result;
 use crate::{block, constant::*};
 use bincode::{deserialize, serialize};
 use log::info;
-use sled::IVec;
+use sled::{IVec, transaction};
 
 #[derive(Debug)]
 pub struct Blockchain{
@@ -56,9 +57,9 @@ impl Blockchain {
         Ok((bc))
     }
 
-    pub fn add_block(&mut self, data: String) -> Result<()>{
+    pub fn add_block(&mut self, transactions:Vec<Transaction>) -> Result<()>{
         let lasthash = self.db.get("LAST")?.unwrap();
-        let new_block = Block::new_block(data, String::from_utf8(lasthash.to_vec())?, TARGET_HEXS)?;
+        let new_block = Block::new_block(transactions, String::from_utf8(lasthash.to_vec())?, TARGET_HEXS)?;
         //self.blocks.push(new_block);
         self.db.insert(new_block.get_hash(), bincode::serialize(&new_block)?)?;
         self.db.insert("LAST", new_block.get_hash().as_bytes())?;
@@ -66,7 +67,7 @@ impl Blockchain {
         Ok(())
     }
 
-    fn find_unspent_transactions(self, address: &str) -> Vec<Transaction>{
+    fn find_unspent_transactions(&self, address: &str) -> Vec<Transaction>{
         let mut spent_TXOs:HashMap<String,Vec<i32>> = HashMap::new();
         let mut unspent_TXs: Vec<Transaction> = Vec::new();
 
@@ -107,10 +108,10 @@ impl Blockchain {
         let mut utxos = Vec::<TXOutput>::new();
         let unspend_TXs = self.find_unspent_transactions(address);
         
-        for tx in unspent_TXs{
+        for tx in unspend_TXs{
             for out in &tx.vout{
                 if out.can_be_unlock_with(&address){
-                    utxos.push(out.clone)
+                    utxos.push(out.clone())
                 }
             }
         }
@@ -120,9 +121,29 @@ impl Blockchain {
     pub fn find_spendable_outputs(
         &self,
         address: &str,
-        amount: i32,
-    ) -> (i32,HashMap<String,Vec<i32>>){
+        amount: i32
+    ) -> (i32,HashMap<String, Vec<i32>>) {
+        let mut unspent_outputs: HashMap<String,Vec<i32>> = HashMap::new();
+        let mut accumulated = 0;
+        let unspend_TXs = self.find_unspent_transactions(address);
+        for tx in unspend_TXs{
+            for index in 0..tx.vout.len(){
+                if tx.vout[index].can_be_unlock_with(address) && accumulated < amount {
+                    match unspent_outputs.get_mut(&tx.id) {
+                        Some(v) => v.push(index as i32),
+                        None => {
+                            unspent_outputs.insert(tx.id.clone(), vec![index as i32]);
+                        }
+                    }
+                    accumulated += tx.vout[index].value;
 
+                    if accumulated >= amount{
+                        return (accumulated,unspent_outputs);
+                    }
+                }
+            }
+        }
+        (accumulated,unspent_outputs)
     }
 
     pub fn iter(&self) -> BlockchainIter{
