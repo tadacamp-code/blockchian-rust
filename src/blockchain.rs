@@ -103,6 +103,28 @@ impl Blockchain {
         unspent_TXs
     }
 
+    pub fn find_UTXO(&self, address: &str) -> Vec<TXOutput>{
+        let mut utxos = Vec::<TXOutput>::new();
+        let unspend_TXs = self.find_unspent_transactions(address);
+        
+        for tx in unspent_TXs{
+            for out in &tx.vout{
+                if out.can_be_unlock_with(&address){
+                    utxos.push(out.clone)
+                }
+            }
+        }
+        utxos
+    }
+
+    pub fn find_spendable_outputs(
+        &self,
+        address: &str,
+        amount: i32,
+    ) -> (i32,HashMap<String,Vec<i32>>){
+
+    }
+
     pub fn iter(&self) -> BlockchainIter{
         BlockchainIter { 
             current_hash: self.current_hash.clone(), 
